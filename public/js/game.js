@@ -913,3 +913,259 @@ function resetState() {
         document.getElementById('btn-submit-vote').textContent = 'Submit Vote';
         state.myVote = null;
     }
+// ═══════════════════════════════════════════════════════════════════
+// FIXES — paste this at the very bottom of game.js, replacing the
+// existing renderLobby, renderReveal, renderVoting functions
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── FIX 1: TIMER keeps running on wait screens ───────────────────
+// Replace your startCountdown function with this one
+function startCountdown(timerEnd, onExpire) {
+    stopCountdown();
+    state.timerEnd = timerEnd;
+
+    function tick() {
+        const remaining = Math.max(0, Math.floor((timerEnd - Date.now()) / 1000));
+        const min = Math.floor(remaining / 60);
+        const sec = remaining % 60;
+        const display = `${min}:${sec.toString().padStart(2, '0')}`;
+
+        // Update ALL timer elements across ALL screens (including wait screens)
+        const timerIds = [
+            'r1-timer-text', 'r1-wait-timer-text',
+            'r2-timer-text', 'r2-wait-timer-text'
+        ];
+        timerIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = display;
+                el.classList.toggle('timer-urgent', remaining <= 30);
+            }
+        });
+
+        // Also update timer fill bars
+        if (state.timerTotal) {
+            const pct = (remaining / state.timerTotal) * 100;
+            ['r1-timer-fill','r1-wait-timer-fill','r2-timer-fill','r2-wait-timer-fill'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.width = `${pct}%`;
+            });
+        }
+
+        if (remaining <= 0) {
+            stopCountdown();
+            if (onExpire) onExpire();
+        }
+    }
+
+    tick();
+    state.timerInterval = setInterval(tick, 1000);
+}
+
+// Call this when game-started fires — store total seconds
+// In your socket.on('game-started') handler, add:
+//   state.timerTotal = room.settings.timerMinutes * 60;
+// Already handled below in the patched socket listeners
+
+// ─── FIX 2: VOTING — show locked screen for each player ──────────
+// This replaces the voting-start socket handler in connectSocket()
+// Find your existing socket.on('voting-start') and replace it with this
+function handleVotingStart({ targetPlayerNumber, targetName, targetRound1, targetRound2, round1Questions, round2Questions, isBeingEvaluated, progress }) {
+    state.currentVoteTarget = targetPlayerNumber;
+    state.isBeingEvaluated = isBeingEvaluated;
+    state.myVote = null;
+
+    // Update progress dots
+    const dotsEl = document.getElementById('voting-dots');
+    if (dotsEl) {
+        dotsEl.innerHTML = '';
+        for (let i = 0; i < progress.total; i++) {
+            const dot = document.createElement('span');
+            dot.className = 'dot' + (i === progress.current - 1 ? ' dot-active' : i < progress.current - 1 ? ' dot-done' : '');
+            dotsEl.appendChild(dot);
+        }
+    }
+
+    // Update title always
+    document.getElementById('voting-title').textContent =
+        `Evaluating P${targetPlayerNumber} — ${targetName}`;
+
+    const lockedEl = document.getElementById('voting-locked');
+    const activeEl = document.getElementById('voting-active');
+
+    if (isBeingEvaluated) {
+        // Show locked state — hide voting UI
+        lockedEl.classList.remove('hidden');
+        activeEl.style.display = 'none';
+        document.getElementById('voting-subtitle').textContent = "You're being evaluated — sit tight";
+    } else {
+        // Show voting UI
+        lockedEl.classList.add('hidden');
+        activeEl.style.display = 'block';
+        document.getElementById('voting-subtitle').textContent = 'Rate how well the impersonator matched';
+
+        // Fill R1 answers
+        const r1El = document.getElementById('voting-r1-answers');
+        r1El.innerHTML = '';
+        round1Questions.forEach((q, i) => {
+            const div = document.createElement('div');
+            div.className = 'voting-qa';
+            div.innerHTML = `<span class="voting-q">${esc(q)}</span><span class="voting-a">"${esc(targetRound1?.[i] || '—')}"</span>`;
+            r1El.appendChild(div);
+        });
+
+        // Fill R2 answers
+        const r2El = document.getElementById('voting-r2-answers');
+        r2El.innerHTML = '';
+        round2Questions.forEach((q, i) => {
+            const div = document.createElement('div');
+            div.className = 'voting-qa';
+            div.innerHTML = `<span class="voting-q">${esc(q)}</span><span class="voting-a impersonated">"${esc(targetRound2?.[i] || '—')}"</span>`;
+            r2El.appendChild(div);
+        });
+
+        // Reset stars and button
+        document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+        document.getElementById('rating-label').textContent = 'Tap to rate';
+        document.getElementById('btn-submit-vote').disabled = true;
+        document.getElementById('btn-submit-vote').textContent = 'Submit Vote';
+    }
+
+    showScreen('screen-voting');
+}
+
+// ─── FIX 3: REVEAL — clean card layout per player ────────────────
+function renderReveal(players, round1Questions, round2Questions, identityMap, scores) {
+    const grid = document.getElementById('reveal-grid');
+    const summary = document.getElementById('reveal-summary');
+    grid.innerHTML = '';
+    if (summary) summary.innerHTML = '';
+
+    players.forEach(player => {
+        const impersonatorId = Object.keys(identityMap).find(k => identityMap[k] === player.id);
+        const impersonator = players.find(p => p.id === impersonatorId);
+        const score = scores[impersonatorId]?.toFixed(1) ?? '—';
+
+        // Main reveal card — one per player, stacked vertically
+        const card = document.createElement('div');
+        card.className = 'reveal-column';
+        card.innerHTML = `
+      <div class="reveal-player-header">
+        <span class="reveal-player-num">P${player.number}</span>
+        <span class="reveal-player-name">${esc(player.name)}</span>
+        <span class="reveal-score-badge">${score} ★</span>
+      </div>
+      <div class="reveal-identity-line">
+        Impersonated by <strong>P${impersonator?.number ?? '?'} — ${esc(impersonator?.name ?? 'Unknown')}</strong>
+      </div>
+      <div class="reveal-two-col">
+        <div class="reveal-section">
+          <div class="reveal-section-header real-header">Round 1 — Their words</div>
+          ${round1Questions.map((q, i) => `
+            <div class="reveal-qa">
+              <span class="reveal-q">${esc(q)}</span>
+              <span class="reveal-a">"${esc(player.round1Answers?.[i] || '—')}"</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="reveal-section reveal-section-alt">
+          <div class="reveal-section-header impersonated-header">Round 2 — ${esc(impersonator?.name ?? '?')}'s version</div>
+          ${round2Questions.map((q, i) => `
+            <div class="reveal-qa">
+              <span class="reveal-q">${esc(q)}</span>
+              <span class="reveal-a impersonated">"${esc(impersonator?.round2Answers?.[i] || '—')}"</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+        grid.appendChild(card);
+
+        // Summary line
+        if (summary) {
+            const pair = document.createElement('div');
+            pair.className = 'reveal-pair';
+            pair.innerHTML = `
+        <span>${esc(impersonator?.name ?? '?')} answered for ${esc(player.name)}</span>
+        <span class="reveal-pair-score">${score} ★</span>
+      `;
+            summary.appendChild(pair);
+        }
+    });
+}
+
+// ─── FIX 4: RESET clears name inputs ─────────────────────────────
+function resetState() {
+    stopCountdown();
+    state.playerId = null;
+    state.playerName = null;
+    state.roomCode = null;
+    state.isHost = false;
+    state.round1Questions = [];
+    state.round1Answers = {};
+    state.round2Questions = [];
+    state.round2Answers = {};
+    state.assignedAnswers = null;
+    state.currentVoteTarget = null;
+    state.myVote = null;
+    state.isBeingEvaluated = false;
+    state.timerTotal = null;
+
+    // Clear all name inputs so old name doesn't persist
+    ['host-name', 'join-name', 'join-code'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    // Reset create game button
+    const createBtn = document.getElementById('btn-create-game');
+    if (createBtn) createBtn.disabled = true;
+}
+
+// ─── PATCH socket listeners — add timerTotal + use handleVotingStart
+// Find these in your connectSocket() and update them:
+
+// In game-started handler, add:   state.timerTotal = (timerEnd - Date.now()) / 1000;
+// In round2-start handler, add:   state.timerTotal = (timerEnd - Date.now()) / 1000;
+// Replace voting-start handler with: handleVotingStart(data)
+
+// The easiest way: add these lines right after connectSocket() is called:
+const _origConnectSocket = connectSocket;
+// Patch happens via re-registering listeners below after DOM loads
+window.addEventListener('DOMContentLoaded', () => {
+    // Patch game-started to store timerTotal
+    state.socket?.off('game-started');
+    state.socket?.on('game-started', ({ round1Questions, timerEnd, room }) => {
+        state.round1Questions = round1Questions;
+        state.round1Answers = {};
+        state.timerEnd = timerEnd;
+        state.timerTotal = Math.floor((timerEnd - Date.now()) / 1000);
+        renderRound1(round1Questions);
+        startCountdown(timerEnd, () => autoSubmitRound1());
+        showScreen('screen-round1');
+    });
+
+    // Patch round2-start to store timerTotal
+    state.socket?.off('round2-start');
+    state.socket?.on('round2-start', ({ assignedAnswers, round1Questions, round2Questions, timerEnd }) => {
+        state.assignedAnswers = assignedAnswers;
+        state.round2Questions = round2Questions;
+        state.round2Answers = {};
+        state.timerEnd = timerEnd;
+        state.timerTotal = Math.floor((timerEnd - Date.now()) / 1000);
+        renderRound2(assignedAnswers, round1Questions, round2Questions);
+        startCountdown(timerEnd, () => autoSubmitRound2());
+        showScreen('screen-round2');
+    });
+
+    // Replace voting-start with the fixed handler
+    state.socket?.off('voting-start');
+    state.socket?.on('voting-start', (data) => handleVotingStart(data));
+
+    // Patch reveal to use the fixed renderer
+    state.socket?.off('reveal-data');
+    state.socket?.on('reveal-data', ({ players, round1Questions, round2Questions, identityMap, scores }) => {
+        renderReveal(players, round1Questions, round2Questions, identityMap, scores);
+        showScreen('screen-reveal');
+    });
+});

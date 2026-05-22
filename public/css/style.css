@@ -12,6 +12,7 @@
     --cream-dark:  #e0d1b0;
     --cream-light: #f7f1e4;
     --teal:        #56B6C6;
+    --light-teal: #8ACBD0;
     --teal-dark:   #3d9aaa;
     --teal-light:  #8ACBD0;
     --white:       #FFFFFF;
@@ -1483,4 +1484,111 @@ input, textarea, button {
         padding: 12px 20px;
         font-size: 0.85rem;
     }
+    /* ── Paste these at the bottom of style.css ── */
+
+    /* REVEAL — clean stacked cards */
+    .reveal-grid { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
+
+    .reveal-column {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .reveal-player-header {
+        display: flex; align-items: center; gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        background: rgba(86,182,198,0.15);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .reveal-player-num {
+        font-family: 'Space Mono', monospace;
+        font-size: 0.7rem; color: var(--teal); letter-spacing: 0.1em;
+    }
+    .reveal-player-name {
+        font-family: 'Space Mono', monospace;
+        font-size: 0.95rem; color: var(--cream); flex: 1; font-weight: 700;
+    }
+    .reveal-score-badge {
+        font-family: 'Space Mono', monospace;
+        font-size: 1rem; color: var(--teal); font-weight: 700;
+    }
+    .reveal-identity-line {
+        padding: 0.5rem 1rem;
+        font-family: 'Space Mono', monospace;
+        font-size: 0.7rem; color: rgba(239,227,202,0.5);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .reveal-identity-line strong { color: var(--light-teal); }
+
+    .reveal-two-col {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    }
+    @media (max-width: 600px) { .reveal-two-col { grid-template-columns: 1fr; } }
+
+    .reveal-section { padding: 0.85rem 1rem; }
+    .reveal-section-alt {
+        padding: 0.85rem 1rem;
+        background: rgba(239,227,202,0.03);
+        border-left: 1px solid rgba(255,255,255,0.06);
+    }
+    .reveal-section-header {
+        font-family: 'Space Mono', monospace;
+        font-size: 0.65rem; letter-spacing: 0.1em;
+        text-transform: uppercase; margin-bottom: 0.6rem;
+    }
+    .real-header { color: var(--teal); }
+    .impersonated-header { color: var(--light-teal); }
+
+    .reveal-qa { margin-bottom: 0.6rem; }
+    .reveal-q {
+        font-family: 'Space Mono', monospace;
+        font-size: 0.65rem; color: rgba(239,227,202,0.45);
+        display: block; margin-bottom: 0.15rem;
+    }
+    .reveal-a {
+        font-family: 'Instrument Serif', serif;
+        font-size: 0.95rem; color: var(--cream);
+        font-style: italic; display: block;
+    }
+    .reveal-a.impersonated { color: var(--light-teal); }
+
+    /* Summary pairs */
+    .reveal-summary { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .reveal-pair {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.5rem 0.75rem;
+        background: rgba(255,255,255,0.04); border-radius: 8px;
+        font-family: 'Space Mono', monospace; font-size: 0.75rem; color: rgba(239,227,202,0.6);
+    }
+    .reveal-pair-score { color: var(--teal); font-weight: 700; }
+
+    /* VOTING — locked state */
+    .voting-locked {
+        text-align: center; padding: 3rem 1rem;
+        display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    }
+    .voting-locked.hidden { display: none; }
+    .locked-icon { font-size: 3rem; }
+    .voting-locked h3 {
+        font-family: 'Space Mono', monospace;
+        font-size: 1.1rem; color: var(--cream);
+    }
+    .voting-locked p {
+        font-family: 'Instrument Serif', serif;
+        font-size: 1rem; color: rgba(239,227,202,0.5); font-style: italic;
+    }
+
+    /* Voting dots */
+    .voting-dots { display: flex; gap: 0.5rem; justify-content: center; margin: 0.5rem 0 1rem; }
+    .dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+    }
+    .dot.dot-active { background: var(--teal); }
+    .dot.dot-done { background: rgba(86,182,198,0.4); }
+
+    /* Timer urgent */
+    .timer-urgent { color: #f04d4d !important; }
 }
