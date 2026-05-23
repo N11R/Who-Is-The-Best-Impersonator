@@ -6,6 +6,10 @@ const roomManager = require('./roommanager');
 const gameEngine = require('./gameengine');
 
 const app = express();
+app.use((req, res, next) => {
+    res.setHeader('ngrok-skip-browser-warning', 'true');
+    next();
+});
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: { origin: '*' }
