@@ -71,7 +71,10 @@ function connectSocket() {
     });
 
     state.socket.on('round1-player-done', ({ doneCount, totalCount }) => {
-        updateWaitCount('round1-wait-count', doneCount, totalCount);
+        updateWaitCount('r1-wait-count', doneCount, totalCount);
+        // Also update the wait screen progress bar
+        const fill = document.getElementById('r1-wait-progress-fill');
+        if (fill) fill.style.width = `${(doneCount / totalCount) * 100}%`;
     });
 
     // ── Round 2 ──────────────────────────────────────────────────────────────
@@ -87,7 +90,9 @@ function connectSocket() {
     });
 
     state.socket.on('round2-player-done', ({ doneCount, totalCount }) => {
-        updateWaitCount('round2-wait-count', doneCount, totalCount);
+        updateWaitCount('r2-wait-count', doneCount, totalCount);
+        const fill = document.getElementById('r2-wait-progress-fill');
+        if (fill) fill.style.width = `${(doneCount / totalCount) * 100}%`;
     });
 
     // ── Voting ───────────────────────────────────────────────────────────────
@@ -304,9 +309,8 @@ function updateR1Progress() {
 
 function submitRound1() {
     const answers = buildAnswersArray(state.round1Questions.length, state.round1Answers);
-    stopCountdown();
+    // Don't stop countdown — keep timer visible on wait screen for other players
     state.socket.emit('submit-round1', { answers, roomCode: state.roomCode });
-    document.getElementById('round1-wait-count').textContent = '';
     showScreen('screen-round1-wait');
 }
 
@@ -550,13 +554,31 @@ function startCountdown(timerEnd, onExpire) {
     stopCountdown();
     state.timerEnd = timerEnd;
 
+    const totalSeconds = Math.max(1, Math.floor((timerEnd - Date.now()) / 1000));
+
     function tick() {
         const remaining = Math.max(0, Math.floor((timerEnd - Date.now()) / 1000));
         const min = Math.floor(remaining / 60);
         const sec = remaining % 60;
         const display = `${min}:${sec.toString().padStart(2, '0')}`;
+        const pct = (remaining / totalSeconds) * 100;
 
-        // Update any visible timer element
+        // Update ALL timer text elements on every visible screen
+        document.querySelectorAll('.timer-text').forEach(el => {
+            el.textContent = `⏱ ${display}`;
+        });
+
+        // Update ALL timer fill bars
+        document.querySelectorAll('.timer-fill').forEach(el => {
+            el.style.width = `${pct}%`;
+            if (remaining <= 30) {
+                el.classList.add('danger');
+            } else {
+                el.classList.remove('danger');
+            }
+        });
+
+        // Also update legacy .timer-display elements if any exist
         document.querySelectorAll('.timer-display').forEach(el => {
             el.textContent = `⏱ ${display} remaining`;
             if (remaining <= 30) el.classList.add('timer-urgent');
@@ -765,7 +787,6 @@ window.addEventListener('DOMContentLoaded', () => {
             const answers = state.round1Questions.map((_, i) => {
                 return document.querySelector(`[data-index="${i}"]`)?.value.trim() || '(no answer)';
             });
-            stopCountdown();
             state.socket.emit('submit-round1', { answers, roomCode: state.roomCode });
             showScreen('screen-round1-wait');
         });
@@ -776,7 +797,6 @@ window.addEventListener('DOMContentLoaded', () => {
             const answers = state.round2Questions.map((_, i) => {
                 return document.querySelector(`[data-r2-index="${i}"]`)?.value.trim() || '(no answer)';
             });
-            stopCountdown();
             state.socket.emit('submit-round2', { answers, roomCode: state.roomCode });
             showScreen('screen-round2-wait');
         });
