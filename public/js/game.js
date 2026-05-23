@@ -46,17 +46,10 @@ window.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Only auto-rejoin when there is NO room link in the URL
-    const savedPlayerId = localStorage.getItem('playerId');
-    const savedRoomCode = localStorage.getItem('roomCode');
-    const savedPlayerName = localStorage.getItem('playerName');
-
-    if (savedPlayerId && savedRoomCode && savedPlayerName) {
-        state.playerId = savedPlayerId;
-        state.roomCode = savedRoomCode;
-        state.playerName = savedPlayerName;
-        state.reconnectAttempted = true;
-    }
+    // No room code in URL — clear old session so user starts fresh
+    localStorage.removeItem('playerId');
+    localStorage.removeItem('roomCode');
+    localStorage.removeItem('playerName');
 
     connectSocket();
     checkURLForRoomCode();
@@ -1019,7 +1012,7 @@ function renderLobby(room) {
     }
 }
 
-// ─── RENDER ROUND 1 (matches your index.html IDs) ────────────────────────────
+// ─── RENDER ROUND 1 () ────────────────────────────
 function renderRound1(questions) {
     const container = document.getElementById('r1-questions');
     container.innerHTML = '';
