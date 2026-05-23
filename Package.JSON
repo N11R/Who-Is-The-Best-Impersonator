@@ -1,20 +1,6 @@
 {
-  "name" : "Who is the Good Liar",
-  "version": "1.0.0",
-  "description": "A multiplayer browser game where players impersonate each other",
-  "main": "server/server.js",
-  "script": {
-    "start": "node server/server.js",
-    "dev": "node server/server.js"
-  },
-  "keywords": [
-    "game",
-    "multiplayer",
-    "socket.io"
-  ],
-  "license": "MIT",
   "dependencies": {
-    "express": "^4.31.0",
-    "socket.io": "^4.7.5"
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
   }
 }
